@@ -1,0 +1,270 @@
+%YAML 1.2
+---
+name: Impex
+file_extensions:
+  - impex
+scope: source.impex
+
+variables:
+  type_id: '\b[\w]+\b'
+  macro_id: '\b[\w-]+\b'
+  attribute_id: '\b[\w]+\b'
+  header_mode: '^\s*\b(?i)(INSERT|UPDATE|INSERT_UPDATE|REMOVE)\b'
+  comment_start: '#'
+  attribute_modifier_id: '\b(alias|allownull|cellDecorator|collection-delimiter|dateformat|default|forceWrite|ignoreKeyCase|ignorenull|key2value-delimiter|lang|map-delimiter|mode|numberformat|path-delimiter|pos|translator|unique|virtual)\b'
+  header_modifier_id: '\b(batchmode|cacheUnique|processor|impex.legacy.mode)\b'
+
+contexts:
+
+  main:
+    - include: comment
+    - include: macro-declaration
+      
+    - match: '{{header_mode}}'
+      scope: constant.language.header.impex
+      set: header
+
+    - match: '.*(?=\n)'
+      scope: invalid.illegal.header-mode.impex
+
+# HEADER     
+
+  header:
+    - include: macro-declaration
+    - include: macro-reference
+    - include: header-modifier
+
+    - meta_scope: meta.header.impex
+
+    - match: '{{type_id}}'
+      scope: support.class.impex
+
+    - match: ';'
+      scope: punctuation.separator.header.impex
+      set: header-attributes
+
+  header-attributes:
+    - include: macro-reference
+    - include: header-attribute-modifier
+    - include: header-item-reference
+    - include: document-id
+    - include: special-attribute
+
+    - meta_scope: meta.header.impex
+
+    - match: '{{attribute_id}}'
+      scope: variable.other.member
+
+    - match: ';'
+      scope: punctuation.separator.header.impex
+        
+    - match: '\n'
+      set: value-line-start
+
+  header-attribute-modifier:
+    - include: macro-reference
+
+    - match: '\['
+      scope: punctuation.section.brackets.begin.impex
+      push:
+        - meta_scope: meta.brackets.impex
+        - include: macro-reference
+
+        - match: '{{attribute_modifier_id}}'
+          scope: entity.other.attribute-name.impex
+          push: modifier-value
+
+        - match: '\]'
+          scope: punctuation.section.brackets.end.impex
+          pop: true
+
+        - match: ''
+          set:
+            - meta_scope: invalid.illegal.attribute-modifier-name.impex
+            - match: '(?=\=)'
+              set: modifier-value
+
+  header-modifier:
+    - include: macro-reference
+
+    - match: '\['
+      scope: punctuation.section.brackets.begin.impex
+      push:
+        - meta_scope: meta.brackets.impex
+        - include: macro-reference
+
+        - match: '{{header_modifier_id}}'
+          scope: entity.other.attribute-name.impex
+          push: modifier-value
+
+        - match: '\]'
+          scope: punctuation.section.brackets.end.impex
+          pop: true
+
+        - match: ''
+          set:
+            - meta_scope: invalid.illegal.attribute-modifier-name.impex
+            - match: '(?=\=)'
+              set: modifier-value
+
+  modifier-value:
+    - match: '='
+      scope: keyword.operator.assignment.impex
+      set:
+        - include: string-quoted-single
+        - include: string-quoted-double
+        - include: macro-reference
+        - meta_content_scope: string.unquoted.impex 
+        - match: '(?=\])'
+          scope: string.unquoted.impex
+          pop: true
+
+  header-item-reference:
+
+    - match: '\('
+      scope: punctuation.section.brackets.begin.impex
+      push: header-item-reference-value
+
+  header-item-reference-value:
+    - include: macro-reference
+    - include: header-attribute-modifier
+    - include: header-item-reference
+    - include: document-id
+
+    - meta_scope: meta.brackets.impex
+
+    - match: '{{attribute_id}}'
+      scope: variable.other.member.impex
+
+    - match: ','
+      scope: punctuation.separator.item-reference.impex
+
+    - match: '\)'
+      scope: punctuation.section.brackets.end.impex
+      pop: true
+
+  document-id:
+    - match: '\&\w+'
+      scope: entity.name.tag.impex
+
+  special-attribute:
+    - match: '@\w+'
+      scope: entity.other.attribute-name.impex
+
+# VALUE LINE
+
+  value-line-start:
+    - include: macro-declaration
+    - include: macro-reference
+    - include: comment
+
+    - match: '{{header_mode}}'
+      scope: constant.language.header.impex
+      set: header
+
+    - match: '{{type_id}}'
+      scope: support.class.impex
+      set:
+        - match: ';'
+          scope: punctuation.separator.value-line.impex
+          set: value-line-data
+        - match: '\S+?'
+          scope: invalid.illegal.type-id.impex
+
+    - match: ';'
+      scope: punctuation.separator.value-line.impex
+      set: value-line-data
+
+  string-quoted-single:
+    - match: ''''
+      scope: punctuation.definition.string.begin.impex
+      push: data-quoted-single
+
+  data-quoted-single:
+    - meta_scope: string.quoted.single.impex
+
+    - match: ''''''
+      scope: constant.character.escape.impex
+
+    - match: "'(?!')"
+      scope: punctuation.definition.string.end.impex
+      pop: true
+
+  string-quoted-double:
+    - match: '"'
+      scope: punctuation.definition.string.begin.impex
+      push: data-quoted-double
+
+  data-quoted-double:
+    - meta_scope: string.quoted.double.impex
+
+    - match: '""'
+      scope: constant.character.escape.impex
+
+    - match: '"(?!")'
+      scope: punctuation.definition.string.end.impex
+      pop: true
+
+  value-line-data:
+    - include: macro-reference
+    - include: string-quoted-double
+
+    - meta_scope: meta.value-line.impex
+
+    - match: '{{header_mode}}'
+      scope: constant.language.header.impex
+      set: header
+
+    - match: '\n'
+      set: value-line-start
+
+    - match: '[^;,]'
+      scope: string.unquoted.impex
+
+    - match: '[;,]'
+      scope: punctuation.separator.header.impex
+
+# COMMENT
+
+  comment:
+    - match: '{{comment_start}}'
+      scope: punctuation.definition.comment.impex comment.line.impex 
+      push: comment-line
+
+  comment-line:
+    - meta_content_scope: comment.line.impex
+
+    - match: '(?=\n)'
+      pop: true
+
+# MACRO DECLARATION
+
+  macro-declaration:
+    - match: '\$(?=\S)'
+      scope: entity.name.constant.impex
+      push: 
+        - meta_scope: meta.macro-declaration.impex
+        - match: '{{macro_id}}'
+          scope: entity.name.constant.impex
+          set: 
+          - meta_scope: meta.macro-declaration.impex
+          - match: '='
+            scope: keyword.operator.assignment.impex
+            set: macro-value
+
+  macro-value:
+    - include: macro-reference
+    - include: header-item-reference
+    - include: header-attribute-modifier
+    - include: document-id
+
+    - meta_scope: meta.macro-declaration.impex
+    - meta_content_scope: string.unquoted.impex meta.assignment.rhs.impex
+    - match: '(?=\n)'
+      pop: true
+
+  macro-reference:
+    - match: '\${{macro_id}}'
+      scope: entity.name.constant.impex meta.macro-reference.impex
+
+
