@@ -7,17 +7,25 @@ scope: source.impex
 
 variables:
   type_id: '\b[\w]+\b'
-  macro_id: '\b[\w-]+\b'
+  macro_id: '\b[\w_-]+\b'
   attribute_id: '\b[\w]+\b'
   header_mode: '^\s*\b(?i)(INSERT|UPDATE|INSERT_UPDATE|REMOVE)\b'
   comment_start: '#'
-  attribute_modifier_id: '\b(alias|allownull|cellDecorator|collection-delimiter|dateformat|default|forceWrite|ignoreKeyCase|ignorenull|key2value-delimiter|lang|map-delimiter|mode|numberformat|path-delimiter|pos|translator|unique|virtual)\b'
+  attribute_modifier_id: '\b(alias|allownull|cellDecorator|collection-delimiter|dateformat|default|forceWrite|ignoreKeyCase|ignorenull,|key2value-delimiter|lang|map-delimiter|mode|numberformat|parallel|path-delimiter|pkFromExternalImportKe|pos|query-chunk-size|sld.enabled|sourceSystemId|translator|unique|virtual|append|remove)\b'
   header_modifier_id: '\b(batchmode|cacheUnique|processor|impex.legacy.mode)\b'
+
+  user_rights_start: '\$START_USERRIGHTS'
+  user_rights_end: '\$END_USERRIGHTS'
+  user_rights_header_mode_1: '\b(Type|UID|MemberOfGroups|Password|Target)\b'
+  user_rights_header_mode_2: '\b(read|create|remove|change|changerights)\b'
+
+  cell_end: '\S+?(?=[\n;])'
 
 contexts:
 
   main:
     - include: comment
+    - include: user-rights
     - include: macro-declaration
       
     - match: '{{header_mode}}'
@@ -154,6 +162,7 @@ contexts:
 # VALUE LINE
 
   value-line-start:
+    - include: user-rights
     - include: macro-declaration
     - include: macro-reference
     - include: comment
@@ -240,17 +249,13 @@ contexts:
 # MACRO DECLARATION
 
   macro-declaration:
-    - match: '\$(?=\S)'
+    - match: '\${{macro_id}}'
       scope: entity.name.constant.impex
-      push: 
+      set: 
         - meta_scope: meta.macro-declaration.impex
-        - match: '{{macro_id}}'
-          scope: entity.name.constant.impex
-          set: 
-          - meta_scope: meta.macro-declaration.impex
-          - match: '='
-            scope: keyword.operator.assignment.impex
-            set: macro-value
+        - match: '='
+          scope: keyword.operator.assignment.impex
+          set: macro-value
 
   macro-value:
     - include: macro-reference
@@ -267,4 +272,93 @@ contexts:
     - match: '\${{macro_id}}'
       scope: entity.name.constant.impex meta.macro-reference.impex
 
+# USER RIGHTS
 
+  user-rights:
+    - include: user_rights_end
+    - match: '{{user_rights_start}}'
+      scope: constant.language.user-rights.impex
+      set:
+      - include: comment
+      - meta_scope: meta.user-rights.impex
+      - match: '\n'
+        set: user-rights-header
+      - match: ';'
+        scope: punctuation.separator.user-rights.impex
+
+  user-rights-end:
+    - match: '{{user_rights_end}}'
+      scope: constant.language.user-rights.impex
+      set:
+      - match: '\n'
+        set: main
+      - match: ';'
+        scope: punctuation.separator.user-rights.impex
+
+  user-rights-header:
+    - include: comment
+    - include: user-rights-end
+    - meta_content_scope: meta.user-rights.impex meta.user-rights.header.impex
+    - match: '{{user_rights_header_mode_1}}'
+      scope: constant.language.user-rights.header.impex
+      set: user-rights-header-end
+    - match: '{{user_rights_header_mode_2}}'
+      scope: entity.other.attribute-name.user-rights.impex
+      set: user-rights-header-end
+    - match: ';'
+      scope: punctuation.separator.user-rights.impex
+    - match: '{{cell_end}}'
+      scope: invalid.illegal.user-rights.impex
+
+  user-rights-header-end:
+    - meta_content_scope: meta.user-rights.impex meta.user-rights.header.impex
+    - match: '{{user_rights_header_mode_1}}'
+      scope: constant.language.user-rights.header.impex
+    - match: '{{user_rights_header_mode_2}}'
+      scope: entity.other.attribute-name.user-rights.impex
+    - match: ';'
+      scope: punctuation.separator.user-rights.impex
+    - match: '\n'
+      set: user-rights-value-line-start
+    - match: '{{cell_end}}'
+      scope: invalid.illegal.user-rights.impex
+
+  user-rights-value-line-start:
+    - include: user-rights-end
+    - include: macro-reference
+    - include: comment
+
+    - meta_content_scope: meta.user-rights.impex meta.user-rights.value-line.impex
+
+    - match: '{{user_rights_end}}'
+      scope: constant.language.user-rights.impex
+      set: main
+
+    - match: '{{type_id}}'
+      scope: support.class.impex
+      set:
+        - include: user-rights-end
+        - match: ';'
+          scope: punctuation.separator.value-line.impex
+          set: user-rights-value-line-data
+        - match: '\S+?'
+          scope: invalid.illegal.type-id.impex
+
+    - match: ';'
+      scope: punctuation.separator.value-line.impex
+      set: user-rights-value-line-data
+
+  user-rights-value-line-data:
+    - include: macro-reference
+    - include: string-quoted-double
+
+    - meta_scope: meta.user-rights.impex meta.user-rights.value-line.impex
+
+    - match: '\n'
+      set: user-rights-value-line-start
+
+    - match: '[^;,]'
+      scope: string.unquoted.impex
+
+    - match: '[;,]'
+      scope: punctuation.separator.header.impex
