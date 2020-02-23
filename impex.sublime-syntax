@@ -128,7 +128,6 @@ contexts:
           pop: true
 
   header-item-reference:
-
     - match: '\('
       scope: punctuation.section.brackets.begin.impex
       push: header-item-reference-value
@@ -141,8 +140,25 @@ contexts:
 
     - meta_scope: meta.brackets.impex
 
+    - match: '({{attribute_id}})(\.)({{attribute_id}})'
+      captures:
+        1: support.class.item-reference.impex
+        2: punctuation.separator.item-reference.impex
+        3: variable.other.member.item-reference.impex
+
+    - match: '({{attribute_id}})(\.)(?=\W)'
+      captures:
+        1: support.class.item-reference.impex
+        2: invalid.illegal.item-reference.impex
+
     - match: '{{attribute_id}}'
       scope: variable.other.member.impex
+
+    - match: '\.'
+      scope: punctuation.separator.item-reference.impex
+
+    - match: '\|'
+      scope: punctuation.separator.item-reference.impex 
 
     - match: ','
       scope: punctuation.separator.item-reference.impex
@@ -276,6 +292,7 @@ contexts:
 
   user-rights:
     - include: user_rights_end
+
     - match: '{{user_rights_start}}'
       scope: constant.language.user-rights.impex
       set:
@@ -298,28 +315,38 @@ contexts:
   user-rights-header:
     - include: comment
     - include: user-rights-end
+
     - meta_content_scope: meta.user-rights.impex meta.user-rights.header.impex
+
     - match: '{{user_rights_header_mode_1}}'
       scope: constant.language.user-rights.header.impex
       set: user-rights-header-end
+
     - match: '{{user_rights_header_mode_2}}'
       scope: entity.other.attribute-name.user-rights.impex
       set: user-rights-header-end
+
     - match: ';'
       scope: punctuation.separator.user-rights.impex
+
     - match: '{{cell_end}}'
       scope: invalid.illegal.user-rights.impex
 
   user-rights-header-end:
     - meta_content_scope: meta.user-rights.impex meta.user-rights.header.impex
+
     - match: '{{user_rights_header_mode_1}}'
       scope: constant.language.user-rights.header.impex
+
     - match: '{{user_rights_header_mode_2}}'
       scope: entity.other.attribute-name.user-rights.impex
+
     - match: ';'
       scope: punctuation.separator.user-rights.impex
+
     - match: '\n'
       set: user-rights-value-line-start
+
     - match: '{{cell_end}}'
       scope: invalid.illegal.user-rights.impex
 
