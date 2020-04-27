@@ -11,8 +11,8 @@ variables:
   attribute_id: '\b[\w]+\b'
   header_mode: '^\s*\b(?i)(INSERT|UPDATE|INSERT_UPDATE|REMOVE)\b'
   comment_start: '#'
-  attribute_modifier_id: '\b(alias|allownull|cellDecorator|collection-delimiter|dateformat|default|forceWrite|ignoreKeyCase|ignorenull,|key2value-delimiter|lang|map-delimiter|mode|numberformat|parallel|path-delimiter|pkFromExternalImportKe|pos|query-chunk-size|sld.enabled|sourceSystemId|translator|unique|virtual|append|remove)\b'
-  header_modifier_id: '\b(batchmode|cacheUnique|processor|impex.legacy.mode)\b'
+  attribute_modifier_id: '\s*\b(alias|allownull|cellDecorator|collection-delimiter|dateformat|default|forceWrite|ignoreKeyCase|ignorenull,|key2value-delimiter|lang|map-delimiter|mode|numberformat|parallel|path-delimiter|pkFromExternalImportKe|pos|query-chunk-size|sld.enabled|sourceSystemId|translator|unique|virtual|append|remove)\b'
+  header_modifier_id: '\s*\b(batchmode|cacheUnique|processor|impex.legacy.mode)\b'
 
   user_rights_start: '\$START_USERRIGHTS'
   user_rights_end: '\$END_USERRIGHTS'
@@ -51,6 +51,9 @@ contexts:
       scope: punctuation.separator.header.impex
       set: header-attributes
 
+    - match: '\n'
+      set: value-line-start
+
   header-attributes:
     - include: macro-reference
     - include: header-attribute-modifier
@@ -61,7 +64,7 @@ contexts:
     - meta_scope: meta.header.impex
 
     - match: '{{attribute_id}}'
-      scope: variable.other.member
+      scope: variable.other.member.impex
 
     - match: ';'
       scope: punctuation.separator.header.impex
@@ -74,23 +77,32 @@ contexts:
 
     - match: '\['
       scope: punctuation.section.brackets.begin.impex
-      push:
-        - meta_scope: meta.brackets.impex
-        - include: macro-reference
+      push: header-attribute-modifier-name
 
-        - match: '{{attribute_modifier_id}}'
-          scope: entity.other.attribute-name.impex
-          push: modifier-value
+    - match: '\]'
+      scope: punctuation.section.brackets.end.impex
+
+  header-attribute-modifier-name:
+    - meta_scope: meta.brackets.impex
+    - include: macro-reference
+
+    - match: '{{attribute_modifier_id}}'
+      scope: entity.other.attribute-name.impex
+      set: modifier-value
+
+    - match: '\]'
+      scope: punctuation.section.brackets.end.impex
+      pop: true
+
+    - match: ''
+      set:
+        - meta_content_scope: invalid.illegal.attribute-modifier-name.impex
+        - match: '(?=\=)'
+          set: modifier-value
 
         - match: '\]'
           scope: punctuation.section.brackets.end.impex
           pop: true
-
-        - match: ''
-          set:
-            - meta_scope: invalid.illegal.attribute-modifier-name.impex
-            - match: '(?=\=)'
-              set: modifier-value
 
   header-modifier:
     - include: macro-reference
@@ -116,16 +128,24 @@ contexts:
               set: modifier-value
 
   modifier-value:
-    - match: '='
+    - match: '\s*='
       scope: keyword.operator.assignment.impex
       set:
         - include: string-quoted-single
         - include: string-quoted-double
         - include: macro-reference
         - meta_content_scope: string.unquoted.impex 
+
+        - match: ','
+          scope: punctuation.separator.header-modifier.impex
+          set: header-attribute-modifier-name
+
         - match: '(?=\])'
           scope: string.unquoted.impex
           pop: true
+
+    - match: ''
+      pop: true
 
   header-item-reference:
     - match: '\('
