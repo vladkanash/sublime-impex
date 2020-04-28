@@ -32,7 +32,7 @@ contexts:
       scope: constant.language.header.impex
       set: header
 
-    - match: '.*(?=\n)'
+    - match: '\S*(?=\n)'
       scope: invalid.illegal.header-mode.impex
 
 # HEADER     
