@@ -2,4 +2,4 @@
 ## Usage 
 Select `Impex` syntax through command pallete or bottom-right corner menu, or open file with `.impex` extension
 
-![Highlighting example](https://user-images.githubusercontent.com/11668274/75111325-accdef00-5649-11ea-90db-5bef55780b32.png)
+![Highlighting example](https://user-images.githubusercontent.com/11668274/80757564-03214780-8b3d-11ea-9dc4-f1a974fcf116.png)
